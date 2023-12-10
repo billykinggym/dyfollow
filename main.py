@@ -1,4 +1,4 @@
-
+import datetime
 from time import sleep
 
 from selenium.webdriver.common.by import By
@@ -7,12 +7,19 @@ from selenium.webdriver.support.expected_conditions import presence_of_element_l
 from selenium.webdriver.support.wait import WebDriverWait
 
 from DriverWrapper import BrowserWrapper
+from entity.UserEntity import User, WorkItems
+from entity.db import db
 from logutil import logger
 
 brower_wrapper:BrowserWrapper = BrowserWrapper()
 
-def checkOneVideo(url:str):
+def checkOneVideo(url:str,userid:int):
 	global brower_wrapper
+	work = WorkItems.get_or_none(url=url)
+	if work is None:
+		work=WorkItems(url=url,userid=userid)
+		work.save()
+
 	brower_wrapper.get(url)
 	ele = brower_wrapper.find_element(By.CLASS_NAME, 'dy-account-close')
 	ele.click()
@@ -20,11 +27,19 @@ def checkOneVideo(url:str):
 	# digg = brower_wrapper.find_element(By.CSS_SELECTOR,'div[data-e2e="video-player-digg"]')
 	span = brower_wrapper.find_element(By.CSS_SELECTOR, "span[class='CE7XkkTw']")
 	logger.info(video_info_wrap.text + " like:" + span.text)
+	work.title=video_info_wrap.text
+	work.like=span.text
+	work.last_access_time=datetime.datetime.now()
+	work.save()
 
 def checkUser(url:str):
 	global brower_wrapper
 	brower_wrapper.get(url)
 	ele:WebElement = None
+	user = User.get_or_none(User.mainurl == url)
+	if user is None:
+		user = User(mainurl=url, count=0)
+		user.save()
 
 	try:
 		WebDriverWait(brower_wrapper.driver, 10).until(
@@ -49,14 +64,16 @@ def checkUser(url:str):
 		urllist.append(url)
 
 	for url in urllist:
-		checkOneVideo(url)
+		checkOneVideo(url,user.id)
 		logger.info(f"{url} completed")
 		sleep(1)
 
 
 def main():
-	# checkUser('https://www.douyin.com/user/MS4wLjABAAAAmrmjkxbqs4nVOgQP6MgbjHcoE3R4tp_RF_i6WQjtusRrP7mn--VNRBVFRptILrv9')
-	checkUser("https://www.douyin.com/user/MS4wLjABAAAAyrIMbWizXolJqgdp7kC8mIeasj0PS9lzCxRAQmjKUGzM_FadezXkcZm2KgitjKtW?vid=7310599614904700200")
+	db.connect()
+	db.create_tables([User,WorkItems])
+	checkUser('https://www.douyin.com/user/MS4wLjABAAAAmrmjkxbqs4nVOgQP6MgbjHcoE3R4tp_RF_i6WQjtusRrP7mn--VNRBVFRptILrv9')
+	# checkUser("https://www.douyin.com/user/MS4wLjABAAAAyrIMbWizXolJqgdp7kC8mIeasj0PS9lzCxRAQmjKUGzM_FadezXkcZm2KgitjKtW?vid=7310599614904700200")
 
 if __name__ == "__main__":
 	main()
