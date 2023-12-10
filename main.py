@@ -12,7 +12,7 @@ from entity.db import db
 from logutil import logger
 
 brower_wrapper:BrowserWrapper = BrowserWrapper()
-
+limit_time = 60*60
 def checkOneVideo(url:str,userid:int):
 	global brower_wrapper
 	work = WorkItems.get_or_none(url=url)
@@ -21,7 +21,7 @@ def checkOneVideo(url:str,userid:int):
 		work.save()
 	else:
 		delta = datetime.datetime.now() - work.last_access_time
-		if delta.total_seconds() < 60 * 60 :
+		if delta.total_seconds() < limit_time :
 			logger.info(f"{url} 更新时间不足一小时，不更新")
 			return
 
@@ -46,7 +46,7 @@ def updateUser(url:str):
 		user.save()
 	else:
 		delta = datetime.datetime.now() - user.last_access_time
-		if delta.total_seconds() < 60 * 60 :
+		if delta.total_seconds() < limit_time :
 			logger.info(f"{url} 更新时间不足一小时，不更新")
 			return
 
