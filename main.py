@@ -51,7 +51,11 @@ def checkUser(url:str):
 	ele=brower_wrapper.find_element(By.CLASS_NAME, 'dy-account-close')
 	ele.click()
 
-	logger.info("作品数量:" + brower_wrapper.find_element(By.CSS_SELECTOR, "span[data-e2e='user-tab-count']").text)
+	itemNumber= brower_wrapper.find_element(By.CSS_SELECTOR, "span[data-e2e='user-tab-count']").text
+	logger.info("作品数量:" + itemNumber)
+	user.count=int(itemNumber)
+	user.last_access_time=datetime.datetime.now()
+	user.save()
 	list = brower_wrapper.find_element(By.CSS_SELECTOR,"div[data-e2e='user-post-list']")
 	videolist = list.find_elements(By.TAG_NAME,"a")
 	logger.info(f"size of videolist is {len(videolist)}")
