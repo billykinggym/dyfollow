@@ -19,6 +19,11 @@ def checkOneVideo(url:str,userid:int):
 	if work is None:
 		work=WorkItems(url=url,userid=userid)
 		work.save()
+	else:
+		delta = datetime.datetime.now() - work.last_access_time
+		if delta.total_seconds() < 60 * 60 :
+			logger.info(f"{url} 更新时间不足一小时，不更新")
+			return
 
 	brower_wrapper.get(url)
 	ele = brower_wrapper.find_element(By.CLASS_NAME, 'dy-account-close')
@@ -32,15 +37,20 @@ def checkOneVideo(url:str,userid:int):
 	work.last_access_time=datetime.datetime.now()
 	work.save()
 
-def checkUser(url:str):
+def updateUser(url:str):
 	global brower_wrapper
-	brower_wrapper.get(url)
 	ele:WebElement = None
 	user = User.get_or_none(User.mainurl == url)
 	if user is None:
 		user = User(mainurl=url, count=0)
 		user.save()
+	else:
+		delta = datetime.datetime.now() - user.last_access_time
+		if delta.total_seconds() < 60 * 60 :
+			logger.info(f"{url} 更新时间不足一小时，不更新")
+			return
 
+	brower_wrapper.get(url)
 	try:
 		WebDriverWait(brower_wrapper.driver, 10).until(
 			presence_of_element_located((By.CLASS_NAME, "dy-account-close"))
@@ -53,6 +63,10 @@ def checkUser(url:str):
 
 	itemNumber= brower_wrapper.find_element(By.CSS_SELECTOR, "span[data-e2e='user-tab-count']").text
 	logger.info("作品数量:" + itemNumber)
+	if(user.count==int(itemNumber)):
+		logger.info("用户作品数量未改变")
+		return
+
 	user.count=int(itemNumber)
 	user.last_access_time=datetime.datetime.now()
 	user.save()
@@ -76,8 +90,9 @@ def checkUser(url:str):
 def main():
 	db.connect()
 	db.create_tables([User,WorkItems])
-	checkUser('https://www.douyin.com/user/MS4wLjABAAAAmrmjkxbqs4nVOgQP6MgbjHcoE3R4tp_RF_i6WQjtusRrP7mn--VNRBVFRptILrv9')
+	updateUser('https://www.douyin.com/user/MS4wLjABAAAAmrmjkxbqs4nVOgQP6MgbjHcoE3R4tp_RF_i6WQjtusRrP7mn--VNRBVFRptILrv9')
 	# checkUser("https://www.douyin.com/user/MS4wLjABAAAAyrIMbWizXolJqgdp7kC8mIeasj0PS9lzCxRAQmjKUGzM_FadezXkcZm2KgitjKtW?vid=7310599614904700200")
+	db.close()
 
 if __name__ == "__main__":
 	main()
