@@ -1,8 +1,9 @@
 from typing import Optional, List
 
 from selenium.webdriver.chrome.options import Options
-from selenium.webdriver.chrome.webdriver import WebDriver
+
 from selenium.webdriver.common.by import By
+from selenium.webdriver.remote.webdriver import WebDriver
 from selenium.webdriver.remote.webelement import WebElement
 
 from selenium import webdriver
@@ -14,6 +15,9 @@ class BrowserWrapper:
 
 	def init_driver(self) -> WebDriver :
 		options = Options()
+		# chrome support headless
+		options.add_argument('--headless')
+		options.add_argument('--disable-gpu')
 		# options.add_argument('user-agent=Mozilla/5.0 (Linux; Android 6.0; Nexus 5 Build/MRA58N) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/110.0.0.0 Mobile Safari/537.36')
 		options.add_argument(
 			'user-agent=Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/110.0.0.0 Safari/537.36')
