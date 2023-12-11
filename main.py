@@ -9,6 +9,7 @@ from selenium.webdriver.common.by import By
 from selenium.webdriver.remote.webelement import WebElement
 from selenium.webdriver.support.expected_conditions import presence_of_element_located
 from selenium.webdriver.support.wait import WebDriverWait
+from werkzeug.exceptions import InternalServerError
 
 from DriverWrapper import BrowserWrapper
 from entity.UserEntity import User, WorkItems, MonitorUser
@@ -17,7 +18,7 @@ from logutil import logger
 from util import split_path, md5, download, datetime_handler
 
 brower_wrapper:BrowserWrapper = BrowserWrapper()
-limit_time = 1
+limit_time = 60
 download_path="data/download/"
 useragent="Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/110.0.0.0 Safari/537.36"
 
@@ -79,7 +80,7 @@ def updateUser(url:str):
 	else:
 		delta = datetime.datetime.now() - user.last_access_time
 		if delta.total_seconds() < limit_time :
-			logger.info(f"{url} 更新时间不足一小时，不更新")
+			logger.info(f"{url} 更新时间不足一分钟，不更新")
 			return
 
 	brower_wrapper.get(url)
@@ -95,7 +96,6 @@ def updateUser(url:str):
 
 	itemNumber= brower_wrapper.find_element(By.CSS_SELECTOR, "span[data-e2e='user-tab-count']").text
 	logger.info("作品数量:" + itemNumber)
-
 
 	user.count=int(itemNumber)
 	user.last_access_time=datetime.datetime.now()
@@ -149,17 +149,23 @@ def add_monitor(url):
 			'msg': 'already exists',
 		}
 	return jsonify(response)
+
+last_monitor_time:datetime = None
 @app.route('/monitor/start/<path:url>')
 def start_monitor(url):
+	global last_monitor_time
 	logger.info(f"start monitor {url}")
+	if last_monitor_time is not None and (datetime.datetime.now() - last_monitor_time).total_seconds() <60:
+		raise InternalServerError(description="任务提交时间不能小于1分钟" )
+	last_monitor_time = datetime.datetime.now()
 	executor.submit(updateUser,url)
 	response = {
 		'status': 'ok',
 		'msg': 'submit task successfully',
 	}
 	return jsonify(response)
-@app.route('/monitor/query/<path:url>')
-def query_url(url):
+@app.route('/monitor/queryworks/<path:url>')
+def queryworks_url(url):
 	logger.info(f"query_url {url}")
 	user = User.get_or_none(User.mainurl==url)
 	if user is None:
@@ -170,10 +176,22 @@ def query_url(url):
 	json_results = json.dumps(results,default=datetime_handler,ensure_ascii=False)
 	return json_results
 
+@app.route('/monitor/query/<path:url>')
+def query_url(url):
+	logger.info(f"query_url {url}")
+	user = User.get_or_none(User.mainurl==url)
+	if user is None:
+		response = {'status': 'not found',}
+		return jsonify(response)
+	results = model_to_dict(user)
+	json_results = json.dumps(results,default=datetime_handler,ensure_ascii=False)
+	return json_results
+
+#
 def main():
 	db.connect()
 	db.create_tables([User,WorkItems])
-	app.run()
+	app.run(host='0.0.0.0', port=8080)
 	# updateUser('https://www.douyin.com/user/MS4wLjABAAAAmrmjkxbqs4nVOgQP6MgbjHcoE3R4tp_RF_i6WQjtusRrP7mn--VNRBVFRptILrv9')
 	# checkUser("https://www.douyin.com/user/MS4wLjABAAAAyrIMbWizXolJqgdp7kC8mIeasj0PS9lzCxRAQmjKUGzM_FadezXkcZm2KgitjKtW?vid=7310599614904700200")
 	db.close()
