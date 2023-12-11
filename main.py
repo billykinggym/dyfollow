@@ -11,6 +11,7 @@ from selenium.webdriver.support.expected_conditions import presence_of_element_l
 from selenium.webdriver.support.wait import WebDriverWait
 from werkzeug.exceptions import InternalServerError
 
+import logutil
 from DriverWrapper import BrowserWrapper
 from entity.UserEntity import User, WorkItems, MonitorUser
 from entity.db import db
@@ -131,6 +132,7 @@ def updateUser(url:str):
 		sleep(1)
 
 app = Flask(__name__)
+app.logger=logutil.logger
 
 @app.route('/monitor/add/<url>')
 def add_monitor(url):
@@ -191,6 +193,8 @@ def query_url(url):
 def main():
 	db.connect()
 	db.create_tables([User,WorkItems])
+	logger.info("create table successfully")
+	logger.info("try to start service")
 	app.run(host='0.0.0.0', port=8080)
 	# updateUser('https://www.douyin.com/user/MS4wLjABAAAAmrmjkxbqs4nVOgQP6MgbjHcoE3R4tp_RF_i6WQjtusRrP7mn--VNRBVFRptILrv9')
 	# checkUser("https://www.douyin.com/user/MS4wLjABAAAAyrIMbWizXolJqgdp7kC8mIeasj0PS9lzCxRAQmjKUGzM_FadezXkcZm2KgitjKtW?vid=7310599614904700200")
