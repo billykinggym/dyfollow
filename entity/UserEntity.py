@@ -15,9 +15,10 @@ class User(Model):
 
 class WorkItems(Model):
 	url = CharField(unique=True)
-	userid = IntegerField()
+	userid = IntegerField(index=True)
 	title = CharField(null=True)
 	like = CharField(null=True)
+	downloadpath = CharField(null=True)
 	last_access_time = DateTimeField(default=datetime.datetime.now)
 	class Meta:
 		database = db

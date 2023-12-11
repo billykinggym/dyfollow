@@ -1,3 +1,3 @@
 from peewee import SqliteDatabase
 
-db = SqliteDatabase('douyin.db')
+db = SqliteDatabase('data/douyin.db')

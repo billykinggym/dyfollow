@@ -1,4 +1,5 @@
 import datetime
+import os
 from time import sleep
 
 from selenium.webdriver.common.by import By
@@ -10,12 +11,16 @@ from DriverWrapper import BrowserWrapper
 from entity.UserEntity import User, WorkItems
 from entity.db import db
 from logutil import logger
+from util import split_path, md5, download
 
 brower_wrapper:BrowserWrapper = BrowserWrapper()
-limit_time = 60*60
+limit_time = 1
+download_path="data/download/"
+useragent="Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/110.0.0.0 Safari/537.36"
+
 def checkOneVideo(url:str,userid:int):
 	global brower_wrapper
-	work = WorkItems.get_or_none(url=url)
+	work = WorkItems.get_or_none(WorkItems.url==url)
 	if work is None:
 		work=WorkItems(url=url,userid=userid)
 		work.save()
@@ -36,6 +41,28 @@ def checkOneVideo(url:str,userid:int):
 	work.like=span.text
 	work.last_access_time=datetime.datetime.now()
 	work.save()
+
+def downloadVideo(url:str,userid:int):
+	global brower_wrapper
+	work = WorkItems.get_or_none(WorkItems.url==url)
+	if work is None:
+		work=WorkItems(url=url,userid=userid)
+		work.save()
+	if work.downloadpath is not None:
+		logger.info(f"已经下载过{url}，忽略")
+		return
+
+	brower_wrapper.get(url)
+	video_source = brower_wrapper.find_element(By.CSS_SELECTOR, 'video source')
+	videoDownloadUrl = video_source.get_attribute("src")
+	download_location = download_path + split_path(md5(videoDownloadUrl))+".mp4"
+	os.makedirs(os.path.dirname(download_location),exist_ok=True)
+	curl_cmd=f"curl --user-agent \"${useragent}\" --referer 'https://www.douyin.com/' -o '{download_location}' '{videoDownloadUrl}'"
+	logger.info(f"下载命令:{curl_cmd}")
+	# os.system(curl_cmd)
+	if download(url=videoDownloadUrl,output=download_location):
+		work.downloadpath=download_location
+		work.save()
 
 def updateUser(url:str):
 	global brower_wrapper
@@ -63,9 +90,7 @@ def updateUser(url:str):
 
 	itemNumber= brower_wrapper.find_element(By.CSS_SELECTOR, "span[data-e2e='user-tab-count']").text
 	logger.info("作品数量:" + itemNumber)
-	if(user.count==int(itemNumber)):
-		logger.info("用户作品数量未改变")
-		return
+
 
 	user.count=int(itemNumber)
 	user.last_access_time=datetime.datetime.now()
@@ -80,9 +105,23 @@ def updateUser(url:str):
 			continue
 		logger.info(video.get_attribute("href"))
 		urllist.append(url)
+		pele = video.find_elements(By.CSS_SELECTOR,"p")
+		title_p = pele[len(pele)-1].text
+		like = video.find_element(By.CSS_SELECTOR, "div span span").text
+		work = WorkItems.get_or_none(WorkItems.url==url, WorkItems.userid==user.id)
+		if work is None:
+			work = WorkItems(url=url, userid=user.id)
+			work.title=title_p
+			work.like=like
+			work.save()
+			logger.info(f"create new {url},like={like}")
+		elif work.like != like:
+			work.like=like
+			logger.info(f"update {url} like={like}")
+			work.save()
 
 	for url in urllist:
-		checkOneVideo(url,user.id)
+		downloadVideo(url,user.id)
 		logger.info(f"{url} completed")
 		sleep(1)
 
