@@ -1,22 +1,27 @@
 import datetime
+import json
 import os
+from concurrent.futures import ThreadPoolExecutor
 from time import sleep
-
+from flask import Flask, jsonify
+from playhouse.shortcuts import model_to_dict
 from selenium.webdriver.common.by import By
 from selenium.webdriver.remote.webelement import WebElement
 from selenium.webdriver.support.expected_conditions import presence_of_element_located
 from selenium.webdriver.support.wait import WebDriverWait
 
 from DriverWrapper import BrowserWrapper
-from entity.UserEntity import User, WorkItems
+from entity.UserEntity import User, WorkItems, MonitorUser
 from entity.db import db
 from logutil import logger
-from util import split_path, md5, download
+from util import split_path, md5, download, datetime_handler
 
 brower_wrapper:BrowserWrapper = BrowserWrapper()
 limit_time = 1
 download_path="data/download/"
 useragent="Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/110.0.0.0 Safari/537.36"
+
+executor = ThreadPoolExecutor(2)
 
 def checkOneVideo(url:str,userid:int):
 	global brower_wrapper
@@ -125,11 +130,51 @@ def updateUser(url:str):
 		logger.info(f"{url} completed")
 		sleep(1)
 
+app = Flask(__name__)
+
+@app.route('/monitor/add/<url>')
+def add_monitor(url):
+	mu = MonitorUser.get_or_none(MonitorUser.url==url)
+	response={}
+	if mu is None:
+		mu = MonitorUser(url=url)
+		mu.save()
+		response={
+			'status':'ok',
+			'msg': 'insert successfully',
+		}
+	else:
+		response={
+			'status':'ok',
+			'msg': 'already exists',
+		}
+	return jsonify(response)
+@app.route('/monitor/start/<path:url>')
+def start_monitor(url):
+	logger.info(f"start monitor {url}")
+	executor.submit(updateUser,url)
+	response = {
+		'status': 'ok',
+		'msg': 'submit task successfully',
+	}
+	return jsonify(response)
+@app.route('/monitor/query/<path:url>')
+def query_url(url):
+	logger.info(f"query_url {url}")
+	user = User.get_or_none(User.mainurl==url)
+	if user is None:
+		response = {'status': 'not found',}
+		return jsonify(response)
+	query = WorkItems.select().where(WorkItems.userid==user.id)
+	results = [model_to_dict(record) for record in query]
+	json_results = json.dumps(results,default=datetime_handler,ensure_ascii=False)
+	return json_results
 
 def main():
 	db.connect()
 	db.create_tables([User,WorkItems])
-	updateUser('https://www.douyin.com/user/MS4wLjABAAAAmrmjkxbqs4nVOgQP6MgbjHcoE3R4tp_RF_i6WQjtusRrP7mn--VNRBVFRptILrv9')
+	app.run()
+	# updateUser('https://www.douyin.com/user/MS4wLjABAAAAmrmjkxbqs4nVOgQP6MgbjHcoE3R4tp_RF_i6WQjtusRrP7mn--VNRBVFRptILrv9')
 	# checkUser("https://www.douyin.com/user/MS4wLjABAAAAyrIMbWizXolJqgdp7kC8mIeasj0PS9lzCxRAQmjKUGzM_FadezXkcZm2KgitjKtW?vid=7310599614904700200")
 	db.close()
 

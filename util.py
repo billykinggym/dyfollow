@@ -1,4 +1,6 @@
+import datetime
 import hashlib
+
 
 import requests
 
@@ -39,3 +41,8 @@ def download(url, output,
     except Exception as e:
         logger.warning(f"download {url} failed with {str(e)}")
     return False
+
+def datetime_handler(obj):
+    if isinstance(obj, datetime.datetime):
+        return obj.isoformat()
+    return obj

@@ -22,3 +22,9 @@ class WorkItems(Model):
 	last_access_time = DateTimeField(default=datetime.datetime.now)
 	class Meta:
 		database = db
+
+class MonitorUser(Model):
+	id= AutoField(primary_key=True)
+	mainurl = CharField(unique=True)
+	class Meta:
+		database = db
