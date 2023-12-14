@@ -3,7 +3,7 @@ import json
 import os
 from concurrent.futures import ThreadPoolExecutor
 from time import sleep
-from flask import Flask, jsonify
+from flask import Flask, jsonify, render_template, send_from_directory
 from playhouse.shortcuts import model_to_dict
 from selenium.webdriver.common.by import By
 from selenium.webdriver.remote.webelement import WebElement
@@ -189,7 +189,17 @@ def query_url(url):
 	json_results = json.dumps(results,default=datetime_handler,ensure_ascii=False)
 	return json_results
 
-#
+@app.route('/des')
+def des():
+    data= {'nickname': 'Miguel'} # fake user
+    return render_template("des.html",user = data)
+@app.route('/data/download/<path:filename>',methods=['GET'])
+def download(filename):
+   #data/download/4b/7a720b02bd40266b183008e3e033a4.mp4
+   return send_from_directory('data/download/',filename,as_attachment=True)
+
+
+
 def main():
 	db.connect()
 	db.create_tables([User,WorkItems])
